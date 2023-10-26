@@ -9,26 +9,27 @@ error FundMe__NotOwner();
 
 contract FundMe {
     using PriceConverter for uint256;
-    mapping(address => uint256) public addressToAmountFunded;
-    address[] public funders;
+    // private more gas efficient
+    mapping(address => uint256) private s_addressToAmountFunded;
+    address[] private s_funders;
 
     address public /* immutable */  i_owner;
     uint256 public constant MINIMUM_USD = 5 * 10 ** 18;
-    AggregatorV3Interface public priceFeed;
+    AggregatorV3Interface private s_priceFeed;
     constructor(address _priceFeed) {
       i_owner = msg.sender;
-      priceFeed  = AggregatorV3Interface(
+       s_priceFeed  = AggregatorV3Interface(
             _priceFeed
         );
     }
 
     function fund() public payable {
         require(
-             msg.value.getConversionRate(priceFeed) >= MINIMUM_USD,
+             msg.value.getConversionRate( s_priceFeed) >= MINIMUM_USD,
             "You need to spend more ETH!"
         );
-        addressToAmountFunded[msg.sender] += msg.value;
-        funders.push(msg.sender);
+        s_addressToAmountFunded[msg.sender] += msg.value;
+       s_funders.push(msg.sender);
     }
 
     function getVersion() public view returns (uint256) {
@@ -37,7 +38,7 @@ contract FundMe {
         // AggregatorV3Interface priceFeed = AggregatorV3Interface(
         //     priceFeedAddress
         // );
-        return priceFeed.version();
+        return  s_priceFeed.version();
     }
 
     modifier onlyOwner {
@@ -50,13 +51,13 @@ contract FundMe {
     function withdraw() public onlyOwner {
         for (
             uint256 funderIndex = 0;
-            funderIndex < funders.length;
+            funderIndex < s_funders.length;
             funderIndex++
         ) {
-            address funder = funders[funderIndex];
-            addressToAmountFunded[funder] = 0;
+            address funder = s_funders[funderIndex];
+            s_addressToAmountFunded[funder] = 0;
         }
-        funders = new address[](0);
+        s_funders = new address[](0);
         // // transfer
         // payable(msg.sender).transfer(address(this).balance);
         
@@ -88,6 +89,13 @@ contract FundMe {
 
     receive() external payable {
         fund();
+    }
+     function getAddressToAmountFunded(address fundingAddress) public view returns (uint256) {
+        return s_addressToAmountFunded[fundingAddress];
+    }
+
+    function getFunder(uint256 index) public view returns (address) {
+        return s_funders[index];
     }
 
 }
