@@ -7,14 +7,15 @@ import {DeployFundMe} from "../script/DeployFundMe.s.sol";
 
 contract FundMeTest is Test {
     FundMe fundMe;
-    address USER = makeAddr("USER");   
-    uint256 constant SEND_VALUE = 10e18; 
-    uint256 constant STARTING_BALANCE = 10 ether; 
+    address USER = makeAddr("USER");
+    uint256 constant SEND_VALUE = 10e18;
+    uint256 constant STARTING_BALANCE = 10 ether;
+
     function setUp() external {
         // fundMe = new FundMe();
         fundMe = new DeployFundMe().run();
         // give user some ETH
-        vm.deal(USER,STARTING_BALANCE);
+        vm.deal(USER, STARTING_BALANCE);
     }
 
     function testMinimumDollar() public {
@@ -25,10 +26,10 @@ contract FundMeTest is Test {
     function testOwnerIsMsgSender() public {
         // //cannot use msg.sender as the test calls the function directly
         // assertEq(address(this), fundMe.i_owner());
-        assertEq( fundMe.i_owner(),msg.sender);
+        assertEq(fundMe.getOwner(), msg.sender);
     }
 
-    function testFundFailWithoutEnoughETH() public{
+    function testFundFailWithoutEnoughETH() public {
         // ==assert(this tx fails/reverts)
         // next line should revert!
         vm.expectRevert();
@@ -39,8 +40,55 @@ contract FundMeTest is Test {
     function testFundUpdatesFundedData() public {
         vm.prank(USER); // the next TX will be sent by USER
         // note here how to pass the value
-        fundMe.fund{value:SEND_VALUE}();
+        fundMe.fund{value: SEND_VALUE}();
         uint256 amountFunded = fundMe.getAddressToAmountFunded(USER);
         assertEq(amountFunded, 10e18);
+    }
+
+    function testAddsFunderToArrayOfFunders() public {
+        vm.startPrank(USER);
+        fundMe.fund{value: SEND_VALUE}();
+        vm.stopPrank();
+
+        address funder = fundMe.getFunder(0);
+        assertEq(funder, USER);
+    }
+
+    modifier funded() {
+        vm.prank(USER);
+        fundMe.fund{value: SEND_VALUE}();
+        _;
+    }
+
+    function testOnlyOwnerCanWithdraw() public funded {
+        // ==assert(this tx fails/reverts)
+        // next line should revert!
+        vm.expectRevert();
+        fundMe.withdraw();
+    }
+
+    function testWithdrawFromASingleFunder() public funded {
+        // Arrange
+        uint256 startingFundMeBalance = address(fundMe).balance;
+        uint256 startingOwnerBalance = fundMe.getOwner().balance;
+
+        // vm.txGasPrice(GAS_PRICE);
+        // uint256 gasStart = gasleft();
+        // // Act
+        vm.startPrank(fundMe.getOwner());
+        fundMe.withdraw();
+        vm.stopPrank();
+
+        // uint256 gasEnd = gasleft();
+        // uint256 gasUsed = (gasStart - gasEnd) * tx.gasprice;
+
+        // Assert
+        uint256 endingFundMeBalance = address(fundMe).balance;
+        uint256 endingOwnerBalance = fundMe.getOwner().balance;
+        assertEq(endingFundMeBalance, 0);
+        assertEq(
+            startingFundMeBalance + startingOwnerBalance,
+            endingOwnerBalance // + gasUsed
+        );
     }
 }
