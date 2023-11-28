@@ -91,4 +91,29 @@ contract FundMeTest is Test {
             endingOwnerBalance // + gasUsed
         );
     }
+
+        // Can we do our withdraw function a cheaper way?
+    function testWithDrawFromMultipleFunders() public funded {
+        // uint160 has same num of bytes as address.
+        uint160 numberOfFunders = 10;
+        // address(0) usually revert.
+        uint160 startingFunderIndex = 1;
+        for (uint160 i = startingFunderIndex; i < numberOfFunders + startingFunderIndex; i++) {
+            // we get hoax from stdcheats
+            // prank + deal
+            hoax(address(i), STARTING_USER_BALANCE);
+            fundMe.fund{value: SEND_VALUE}();
+        }
+
+        uint256 startingFundMeBalance = address(fundMe).balance;
+        uint256 startingOwnerBalance = fundMe.getOwner().balance;
+
+        vm.startPrank(fundMe.getOwner());
+        fundMe.withdraw();
+        vm.stopPrank();
+
+        assert(address(fundMe).balance == 0);
+        assert(startingFundMeBalance + startingOwnerBalance == fundMe.getOwner().balance);
+        assert((numberOfFunders + 1) * SEND_VALUE == fundMe.getOwner().balance - startingOwnerBalance);
+    }
 }

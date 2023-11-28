@@ -26,3 +26,7 @@ git config --global user.name "Chris"
 git config --global user.email chris.ge@live.com
 
 forge install smartcontractkit/chainlink-brownie-contracts@1.1.1 --no-commit
+
+forge inspect FundMe storageLayout
+
+cast storage CONTRACT_ADDRESS [index]
